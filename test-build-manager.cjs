@@ -1,0 +1,40 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+const {createBuildManager} = require('./build-manager');
+const root = fs.mkdtempSync(path.join(os.tmpdir(),'foleam-build-test-'));
+const handlers = {}, webContents = {mainFrame:{}}, event = {sender:webContents,senderFrame:webContents.mainFrame};
+let running = false, opened = '';
+const source = path.join(root,'example.jar'); fs.writeFileSync(source,'test');
+const manager = createBuildManager({root,isBuild:id=>['A','B'].includes(id),info:id=>({id,loader:'forge',mcVersion:'1.12.2'}),
+    ipcMain:{handle:(key,fn)=>handlers[key]=fn},window:()=>({webContents}),busy:()=>running,
+    dialog:{showOpenDialog:async()=>({filePaths:[source],canceled:false})},shell:{openPath:async p=>{opened=p;return '';}}});
+const call = (name,data)=>handlers['build:'+name](event,data);
+(async()=>{
+    manager.ensure('A');manager.ensure('B');
+    const saved=await call('save',{id:'A',name:' My Build ',description:'Private mods'});
+    assert.equal(saved.build.name,'My Build');assert.equal(manager.snapshot('A').description,'Private mods');
+    assert.equal((await call('save',{id:'A',name:' ',description:''})).ok,false);
+    assert.equal((await call('save',{id:'A',name:'Ok',description:'x'.repeat(1001)})).ok,false);
+    assert.equal((await call('import',{id:'A'})).count,1);
+    const dropped=path.join(root,'dropped.jar');fs.writeFileSync(dropped,'test');
+    assert.equal((await call('import',{id:'B',paths:[dropped]})).count,1);
+    assert.equal((await call('import',{id:'B',paths:['relative.jar']})).ok,false);
+    fs.unlinkSync(path.join(root,'instances','B','mods','dropped.jar'));
+    assert.equal(manager.snapshot('B').mods.length,0);
+    assert(!fs.existsSync(path.join(root,'mods')));
+    assert.equal((await call('import',{id:'A'})).skipped.length,1);
+    assert.equal((await call('toggle',{id:'A',name:'example.jar',enabled:false})).build.mods[0].enabled,false);
+    assert.equal((await call('import',{id:'A'})).skipped.length,1);
+    assert.equal((await call('toggle',{id:'A',name:'example.jar.disabled',enabled:true})).build.mods[0].enabled,true);
+    running=true; assert.equal((await call('toggle',{id:'A',name:'example.jar',enabled:false})).ok,false); running=false;
+    for(const id of ['..','../A','A/B','C:/outside']) assert.equal((await call('details',{id})).ok,false);
+    assert.equal((await call('toggle',{id:'A',name:'../example.jar',enabled:false})).ok,false);
+    assert.equal((await handlers['build:details']({sender:{}},{id:'A'})).ok,false);
+    await call('folder',{id:'B',folder:'mods'}); assert.equal(opened,path.join(root,'instances','B','mods'));
+    assert.equal((await call('folder',{id:'A',folder:'saves',world:'../../..'})).ok,false);
+    fs.writeFileSync(path.join(root,'instances','A','logs','latest.log'),'x'.repeat(140000));
+    const log=await call('log',{id:'A'}); assert(log.truncated);assert.equal(log.text.length,131072);
+    manager.launched('A'); assert(manager.snapshot('A').lastLaunch);
+    assert.equal(manager.snapshot('A').name,'My Build');
+    console.log('PASS: build isolation, import collisions, toggles, busy guard, traversal, sender guard, folders, logs, last launch');
+})().catch(e=>{console.error(e);process.exitCode=1;});

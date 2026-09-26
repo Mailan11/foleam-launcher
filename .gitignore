@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/generated/
+minecraft_data/
+accounts.json
+config.json
+updates/
+.env
+.env.*
+*.log
+*.pfx
+*.p12
+*.pem
+*.key
+.cache/

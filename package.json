@@ -1,0 +1,79 @@
+{
+  "name": "foleam-launcher-minecraft",
+  "version": "1.2.2",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis --x64"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@azure/msal-node": "^6.0.1",
+    "@xmcl/core": "^2.13.0",
+    "@xmcl/installer": "^5.4.0",
+    "@xmcl/user": "^4.4.2",
+    "extract-zip": "^2.0.1",
+    "lucide": "^1.47.0",
+    "skinview3d": "^2.2.1",
+    "three": "^0.140.2",
+    "undici": "^6.0.1",
+    "yazl": "^3.3.1"
+  },
+  "description": "Foleam Minecraft Launcher",
+  "devDependencies": {
+    "electron": "^41.7.1",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "beforeBuild": "./scripts/prepare-installer.cjs",
+    "appId": "ru.mailan1.foleam",
+    "productName": "Foleam Launcher",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "account-store.js",
+      "external-url.js",
+      "SECURITY.md",
+      "launcher-updates.js",
+      "update-renderer.js",
+      "launcher-brand.css",
+      "assets/foleam-logo.png",
+      "renderer.js",
+      "index.html",
+      "background.png",
+      "build-manager.js",
+      "build-renderer.js",
+      "build-manager.css",
+      "wardrobe-main.js",
+      "wardrobe-renderer.js",
+      "wardrobe.css",
+      "streams-main.js",
+      "streams-renderer.js",
+      "streams.css",
+      "mailan-auth.js",
+      "minecraft-skin-client.js",
+      "assets/default-skins/**/*",
+      "vendor/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/foleam.ico",
+      "target": "nsis",
+      "artifactName": "Foleam-Launcher-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "packElevateHelper": false,
+      "include": "build/installer.nsh",
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

@@ -1,0 +1,21 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto');
+const {Readable}=require('node:stream');const {installUpdates,newer,validate}=require('./launcher-updates');
+assert(newer('1.10.0','1.9.9'));assert(!newer('1.1.0','1.2.0'));assert(!newer('bad','1.2.0'));
+const bytes=Buffer.from('test installer'),digest=crypto.createHash('sha256').update(bytes).digest('hex');
+const manifest={version:'1.2.0',url:'https://mailan1.ru/Foleam-Launcher-Setup-1.2.0.exe',sha256:digest,size:bytes.length,notes:'Test'};
+assert.throws(()=>validate({...manifest,url:'https://elsewhere.test/x.exe'}));assert.throws(()=>validate({...manifest,size:-1}));
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'foleam-updates-'));const handlers={},webContents={mainFrame:{},send(){}};let opened=0,quit=0,busy=false,bad=false,response=0;
+installUpdates({root,app:{getVersion:()=> '1.1.0',isPackaged:true,quit:()=>quit++},ipcMain:{handle:(k,f)=>handlers[k]=f},window:()=>({webContents,isDestroyed:()=>false}),shell:{openPath:async()=>{opened++;return ''}},dialog:{showMessageBox:async()=>({response})},busy:()=>busy,fetch:async url=>Readable.from([url.includes('.json')?Buffer.from(JSON.stringify(manifest)):bad?Buffer.from('bad'):bytes])});
+const call=name=>handlers['launcher-update:'+name]({sender:webContents,senderFrame:webContents.mainFrame});
+(async()=>{
+    assert.equal((await call('check')).status,'available');
+    bad=true;assert.equal((await call('download')).status,'available');assert.equal(fs.readdirSync(path.join(root,'updates')).length,0);
+    bad=false;assert.equal((await call('download')).status,'ready');
+    await call('install');assert.equal(opened,0);
+    busy=true;response=1;assert((await call('install')).error);assert.equal(opened,0);
+    busy=false;await call('install');assert.equal(opened,1);assert.equal(quit,1);
+    fs.writeFileSync(path.join(root,'updates','Foleam-Launcher-Setup-1.2.0.exe'),'tampered');
+    assert.equal((await call('install')).status,'available');assert.equal(opened,1);
+    assert.equal((await handlers['launcher-update:check']({sender:{}})).status,'error');
+    console.log('PASS: version comparison, URL validation, corrupt download cleanup, verified install, user confirmation, game guard, tamper detection, sender guard');
+})().catch(e=>{console.error(e);process.exitCode=1});

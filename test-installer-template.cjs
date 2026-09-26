@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const prepare=require('./scripts/prepare-installer.cjs');assert.equal(prepare(),true);assert.equal(prepare(),true);
+const file=fs.readFileSync(path.join(path.dirname(require.resolve('app-builder-lib/package.json')),'templates/nsis/include/installer.nsh'),'utf8');
+assert(!file.includes('!insertmacro copyFile "$EXEPATH"'));
+assert(file.includes('!insertmacro extractEmbeddedAppPackage'));
+assert(file.includes('File "/oname=${UNINSTALL_FILENAME}" "${UNINSTALLER_OUT_FILE}"'));
+assert(file.includes('WriteRegStr SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" InstallLocation'));
+assert.throws(()=>prepare.replaceOnce('changed template','missing','new'));
+assert.throws(()=>prepare.replaceOnce('repeat repeat','repeat','new'));
+console.log('PASS: installer cache copy removed, extraction/uninstaller/registry retained, template change fails closed');
