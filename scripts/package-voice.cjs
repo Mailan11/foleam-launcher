@@ -1,0 +1,11 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const root=path.resolve(__dirname,'..');
+const files={};
+for(const name of ['foleam-voice.html','foleam-voice.js','foleam-voice.css','foleam-voice-icons.js'])files[name]=fs.readFileSync(path.join(root,'voice-client',name),'utf8');
+const bytes=Buffer.from(JSON.stringify({id:'voice',version:'1.0.0',files}));
+const catalog={id:'voice',version:'1.0.0',url:'https://mailan1.ru/Foleam-Voice-1.0.0.json',size:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex')};
+fs.mkdirSync(path.join(root,'dist'),{recursive:true});
+fs.writeFileSync(path.join(root,'dist','Foleam-Voice-1.0.0.json'),bytes);
+fs.writeFileSync(path.join(root,'voice-catalog.json'),JSON.stringify(catalog,null,2)+'\n');
+console.log(JSON.stringify(catalog));

@@ -1,0 +1,21 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {installAddons,verify}=require('./addons-main');
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'foleam-addon-test-'));
+const bytes=fs.readFileSync(path.join(__dirname,'dist/Foleam-Voice-1.0.0.json'));
+assert.equal(verify(bytes).id,'voice');assert.throws(()=>verify(Buffer.from('tampered')));
+const handlers={};let corrupt=false,confirm=1;
+const addon=installAddons({root,ipcMain:{handle:(n,f)=>handlers[n]=f},window:()=>null,dialog:{showMessageBox:async()=>({response:confirm})},fetcher:async()=>({ok:true,body:[corrupt?Buffer.from('bad'):bytes]})});
+const call=(name,data)=>handlers['addons:'+name]({},data);
+(async()=>{
+ assert.equal(addon.state().installed,false);
+ corrupt=true;assert.equal((await call('install')).ok,false);assert.equal(addon.state().installed,false);
+ corrupt=false;assert.equal((await call('install')).enabled,true);
+ assert.equal((await call('toggle',{enabled:false})).enabled,false);
+ assert.equal((await call('open')).ok,false);
+ assert.equal((await call('toggle',{enabled:true})).enabled,true);
+ confirm=0;assert.equal((await call('remove')).installed,true);
+ confirm=1;assert.equal((await call('remove')).installed,false);
+ assert.equal(fs.existsSync(path.join(root,'addons/voice.json')),false);
+ console.log('PASS: addon verification, failed download, enable/disable, removal confirmation and cleanup');
+})().catch(e=>{console.error(e);process.exitCode=1});

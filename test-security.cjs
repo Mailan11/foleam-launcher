@@ -6,6 +6,26 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { createAccountStore } = require('./account-store');
 const { externalUrl } = require('./external-url');
+const { createGuardedIpc } = require('./ipc-guard');
+const handlers = {}, listeners = {};
+const wc = { mainFrame: {} };
+let win = { webContents: wc, isDestroyed: () => false };
+const ipc = createGuardedIpc({handle:(c,f)=>handlers[c]=f,on:(c,f)=>listeners[c]=f},()=>win);
+ipc.handle('test', (_e, value) => value);
+let received = 0;
+ipc.on('test', () => received++);
+const trusted = {sender:wc,senderFrame:wc.mainFrame};
+assert.equal(handlers.test(trusted, 42), 42);
+for (const event of [{sender:{},senderFrame:wc.mainFrame},{sender:wc,senderFrame:{}},{}]) {
+    assert.throws(() => handlers.test(event));
+    listeners.test(event);
+}
+assert.equal(received, 0);
+listeners.test(trusted);assert.equal(received, 1);
+win = null;assert.throws(() => handlers.test(trusted));
+const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+assert(html.includes("script-src 'self';"));
+assert(html.includes("object-src 'none'; frame-src 'none'"));
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'foleam-security-'));
 const file = path.join(root, 'accounts.json');
 const key = crypto.randomBytes(32);

@@ -7,4 +7,11 @@ assert(file.includes('File "/oname=${UNINSTALL_FILENAME}" "${UNINSTALLER_OUT_FIL
 assert(file.includes('WriteRegStr SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" InstallLocation'));
 assert.throws(()=>prepare.replaceOnce('changed template','missing','new'));
 assert.throws(()=>prepare.replaceOnce('repeat repeat','repeat','new'));
+const custom=fs.readFileSync(path.join(__dirname,'build/installer.nsh'),'utf8');
+assert(custom.includes('!define INSTALL_REGISTRY_KEY "Software\\Foleam Launcher"'));
+assert(custom.includes('Page custom FoleamOptionsCreate FoleamOptionsLeave'));
+assert(custom.includes('DeleteRegKey /ifempty HKCU "${FOLEAM_LEGACY_KEY}"'));
+const pkg=require('./package.json');
+assert.equal(pkg.build.nsis.installerIcon,'assets/foleam.ico');
+assert.equal(pkg.build.nsis.uninstallerIcon,'assets/foleam.ico');
 console.log('PASS: installer cache copy removed, extraction/uninstaller/registry retained, template change fails closed');

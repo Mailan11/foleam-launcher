@@ -13,6 +13,7 @@ function add(name){
 for(const name of pkg.build.files){if(name==='assets/default-skins/**/*')add('assets/default-skins');else if(name==='vendor/*')add('vendor');else if(name.includes('*'))throw Error('Unreviewed glob');else add(name);}
 for(const name of ['package-lock.json','assets/foleam.ico','build/installer.nsh','scripts/prepare-installer.cjs','scripts/package-source.cjs','SOURCE-README.md','test-security.cjs','test-updates.cjs','test-build-manager.cjs','test-installer-template.cjs'])add(name);
 const deny=/(?:^|\/)(?:accounts\.json|config\.json|\.env.*|minecraft_data|node_modules|dist|\.git|\.cache)(?:\/|$)|\.(?:pfx|p12|pem|key|log)$/i;
+for(const name of ['voice-client','voice-server','scripts/package-voice.cjs','test-addons.cjs'])add(name);
 for(const name of files)if(deny.test(name))throw Error('Private file blocked: '+name);
 const hashes=[];
 for(const name of [...files].sort()){

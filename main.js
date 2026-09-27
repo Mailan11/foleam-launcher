@@ -2,7 +2,7 @@
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
-const { app, BrowserWindow, WebContentsView, ipcMain, shell, dialog, session, nativeImage, safeStorage } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain: rawIpcMain, shell, dialog, session, nativeImage, safeStorage } = require('electron');
 const { createMailanAuth } = require('./mailan-auth');
 const path = require('path');
 const fs = require('fs');
@@ -13,11 +13,14 @@ const yazl = require('yazl');
 const { Version, launch } = require('@xmcl/core');
 
 let mainWindow;
+const ipcMain = require('./ipc-guard').createGuardedIpc(rawIpcMain, () => mainWindow);
 let isLaunching = false;
 const mailanAuth = createMailanAuth({ BrowserWindow, session, parent: () => mainWindow });
 const streams = require('./streams-main').installStreams({ ipcMain, session, WebContentsView, window: () => mainWindow, auth: mailanAuth });
 
 const DATA_PATH = app.isPackaged ? app.getPath('userData') : __dirname;
+const addons = require('./addons-main').installAddons({ipcMain,BrowserWindow,auth:mailanAuth,root:DATA_PATH,window:()=>mainWindow,dialog});
+app.on('before-quit',()=>addons.stop());
 fs.mkdirSync(DATA_PATH, { recursive: true });
 const MINECRAFT_PATH = path.join(DATA_PATH, 'minecraft_data');
 const RUNTIME_PATH = path.join(MINECRAFT_PATH, 'runtime');
@@ -417,6 +420,9 @@ function createWindow() {
     mainWindow.on('resize', () => streams.resize());
     mainWindow.on('closed', () => streams.stopPlayer());
     mainWindow.webContents.on('will-navigate', event => event.preventDefault());
+    mainWindow.webContents.on('will-attach-webview', event => event.preventDefault());
+    mainWindow.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
+    mainWindow.webContents.session.setPermissionCheckHandler(() => false);
     mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 }
 app.whenReady().then(() => {

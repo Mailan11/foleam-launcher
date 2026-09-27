@@ -114,6 +114,6 @@ function createMailanAuth({ BrowserWindow, session, parent }) {
         if (!response.ok) throw new Error(data.error || `Ошибка сервиса (${response.status}).`);
         return data;
     }
-    return { login, authenticate, forget, streamRequest };
+    return { login, authenticate, forget, streamRequest, getSession: id => sessions.get(Number(id)) };
 }
 module.exports = { createMailanAuth, gameAccount };
